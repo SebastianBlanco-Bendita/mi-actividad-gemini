@@ -1,5 +1,5 @@
 const cors = require('cors');
-const express = 'express';
+const express = require('express');
 const helmet = require('helmet'); // <-- 1. Importa Helmet
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const path = require('path');
@@ -124,3 +124,4 @@ app.post('/validate', (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Servidor escuchando en el puerto ${PORT}`));
+
