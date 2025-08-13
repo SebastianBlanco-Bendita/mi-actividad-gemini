@@ -1,3 +1,4 @@
+const cors = require('cors');
 const express = require('express');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const path = require('path'); // Módulo para manejar rutas de archivos
@@ -6,6 +7,7 @@ require('dotenv').config(); // Carga las variables del archivo .env
 const app = express();
 
 // Middleware para que Express pueda entender el JSON que envía Marketing Cloud
+app.use(cors());
 app.use(express.json());
 
 // --- LÍNEA NUEVA Y ESENCIAL ---
