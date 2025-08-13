@@ -1,31 +1,62 @@
 const cors = require('cors');
-const express = require('express');
+const express = 'express';
+const helmet = require('helmet'); // <-- 1. Importa Helmet
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const path = require('path'); // Módulo para manejar rutas de archivos
-require('dotenv').config(); // Carga las variables del archivo .env
+const path = require('path');
+require('dotenv').config();
 
 const app = express();
 
-// --- INICIO DEL BLOQUE DE CONFIGURACIÓN DE CORS EXPLÍCITO ---
-// Esta sección reemplaza la simple llamada a app.use(cors());
-const corsOptions = {
-  origin: [
-    'https://mc.exacttarget.com', 
+// --- INICIO DEL BLOQUE DE SEGURIDAD (CORS y CSP) ---
+
+// Configuración de dominios permitidos para CORS
+const allowedOrigins = [
+    'https://mc.exacttarget.com',
     'https://jb-prod.exacttarget.com',
     'https://journeybuilder.exacttarget.com'
-  ],
-  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-  credentials: true,
-  optionsSuccessStatus: 204
-};
-app.use(cors(corsOptions));
-// --- FIN DEL BLOQUE DE CONFIGURACIÓN DE CORS ---
+    // Puedes añadir tu dominio de Render para pruebas si es necesario
+];
+
+app.use(cors({
+    origin: function (origin, callback) {
+        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true,
+}));
 
 
-// Middleware para que Express pueda entender el JSON que envía Marketing Cloud
+// 2. Configura las cabeceras de Política de Seguridad de Contenido (CSP)
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            // Permite que tu app sea cargada en un iframe por Marketing Cloud
+            frameAncestors: ["'self'", "*.exacttarget.com", "*.marketingcloudapps.com"],
+            // Permite cargar scripts de tu propio dominio y de CDNs si los usas
+            scriptSrc: ["'self'", "'unsafe-inline'", "https://ajax.googleapis.com"],
+            // Permite estilos en línea y de tu propio dominio
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            // Permite cargar imágenes de tu dominio y también data URIs
+            imgSrc: ["'self'", "data:", "https://*.onrender.com"],
+            // Permite conexiones a la API de Google y a tu propio dominio
+            connectSrc: ["'self'", "https://generativelanguage.googleapis.com"]
+        }
+    },
+    // Desactiva una cabecera que puede causar problemas con iframes
+    frameguard: false
+}));
+
+// --- FIN DEL BLOQUE DE SEGURIDAD ---
+
+
+// Middleware para que Express pueda entender el JSON
 app.use(express.json());
 
-// Sirve archivos estáticos (como config.json e imágenes) desde la carpeta 'public'
+// Sirve archivos estáticos desde la carpeta 'public'
 app.use(express.static(path.join(__dirname, 'public')));
 
 
@@ -36,53 +67,46 @@ const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
 
 // --- Endpoint principal que Marketing Cloud llamará ---
 app.post('/execute', async (req, res) => {
-  try {
-    console.log("Petición recibida de SFMC:", JSON.stringify(req.body, null, 2));
+    try {
+        console.log("Petición recibida de SFMC:", JSON.stringify(req.body, null, 2));
+        const args = req.body.inArguments[0];
+        const { contactKey, firstName, city, interestCategory } = args;
 
-    // 1. Extraer los datos del cliente que envía Marketing Cloud
-    const args = req.body.inArguments[0];
-    const { contactKey, firstName, city, interestCategory } = args;
+        const prompt = `
+          Actúa como un copywriter creativo para una marca de e-commerce.
+          Tu tarea es escribir un párrafo corto (aproximadamente 40-50 palabras) y amigable para un email.
+          El tono debe ser personal y cercano.
+          El formato de salida debe ser un único párrafo dentro de una etiqueta HTML <p>.
 
-    // 2. Construir el prompt para Gemini
-    const prompt = `
-      Actúa como un copywriter creativo para una marca de e-commerce.
-      Tu tarea es escribir un párrafo corto (aproximadamente 40-50 palabras) y amigable para un email.
-      El tono debe ser personal y cercano.
-      El formato de salida debe ser un único párrafo dentro de una etiqueta HTML <p>.
+          Aquí están los datos del cliente:
+          - Nombre: ${firstName}
+          - Ciudad: ${city}
+          - Categoría de interés principal: ${interestCategory}
 
-      Aquí están los datos del cliente:
-      - Nombre: ${firstName}
-      - Ciudad: ${city}
-      - Categoría de interés principal: ${interestCategory}
+          Por favor, redacta el párrafo.
+        `;
 
-      Por favor, redacta el párrafo.
-    `;
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const generatedText = response.text();
 
-    // 3. Llamar a la API de Gemini
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const generatedText = response.text();
+        console.log("Respuesta de Gemini:", generatedText);
 
-    console.log("Respuesta de Gemini:", generatedText);
+        const responseToSFMC = {
+            outArguments: [{
+                "gemini_output_html": generatedText
+            }]
+        };
 
-    // 4. Preparar la respuesta para devolver a Marketing Cloud
-    const responseToSFMC = {
-      outArguments: [{
-        "gemini_output_html": generatedText
-      }]
-    };
+        res.status(200).json(responseToSFMC);
 
-    // 5. Enviar la respuesta
-    res.status(200).json(responseToSFMC);
-
-  } catch (error) {
-    console.error("Error procesando la petición:", error);
-    // Es importante devolver un status 500 si algo falla
-    res.status(500).send("Internal Server Error");
-  }
+    } catch (error) {
+        console.error("Error procesando la petición:", error);
+        res.status(500).send("Internal Server Error");
+    }
 });
 
-// --- Otros endpoints para el ciclo de vida de la actividad (requeridos por config.json) ---
+// --- Otros endpoints para el ciclo de vida de la actividad ---
 app.post('/save', (req, res) => {
     console.log('Request to /save');
     res.status(200).json({ success: true });
