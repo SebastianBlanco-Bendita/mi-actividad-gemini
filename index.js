@@ -1,6 +1,6 @@
 const cors = require('cors');
 const express = require('express');
-const helmet = require('helmet'); // <-- 1. Importa Helmet
+const helmet = require('helmet');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const path = require('path');
 require('dotenv').config();
@@ -11,23 +11,20 @@ const app = express();
 
 // Configuración de dominios permitidos para CORS
 app.use(cors({
-    origin: true, // Permite CUALQUIER origen
+    origin: true, // Permite CUALQUIER origen. Para producción, es mejor restringirlo a los dominios de SFMC.
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['*'],
     exposedHeaders: ['*']
 }));
 
-
-
-// 2. Configura las cabeceras de Política de Seguridad de Contenido (CSP)
+// Configura las cabeceras de Política de Seguridad de Contenido (CSP)
 app.use(helmet({
     contentSecurityPolicy: {
         directives: {
             defaultSrc: ["'self'", "*"],
             frameAncestors: [
                 "'self'", 
-                "*", // Permite ser embebido desde cualquier dominio
                 "*.exacttarget.com", 
                 "*.marketingcloudapps.com",
                 "*.salesforce.com"
@@ -47,7 +44,7 @@ app.use(helmet({
             childSrc: ["'self'", "*"]
         }
     },
-    frameguard: false, // Permite ser cargado en iframes
+    frameguard: false, // Permite ser cargado en iframes de SFMC
     crossOriginEmbedderPolicy: false,
     crossOriginResourcePolicy: false
 }));
@@ -62,7 +59,20 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 
-// Configuración del cliente de Gemini API
+// --- CAMBIO 1: INICIALIZACIÓN DEL CLIENTE DE GEMINI API ---
+// Este bloque era necesario para poder usar la variable 'model' en la ruta /execute.
+let model;
+if (process.env.GEMINI_API_KEY) {
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    console.log("Cliente de Gemini API inicializado correctamente.");
+} else {
+    console.error("Error: La variable de entorno GEMINI_API_KEY no está definida.");
+}
+// --- FIN DEL CAMBIO 1 ---
+
+
+// Endpoint de Health Check
 app.get('/health', (req, res) => {
     res.status(200).json({ 
         status: 'healthy', 
@@ -109,14 +119,20 @@ app.get('/config.json', (req, res) => {
             "useJwt": false
         },
         "execute": {
+            // --- CAMBIO 2: CORRECCIÓN DE inArguments ---
+            // Se ha ajustado la sintaxis para que coincida con la forma en que Journey Builder
+            // lee los datos de la Data Extension de entrada ('TestCustomActivity').
+            // La sintaxis {{Contact.Attribute...}} busca en Attribute Groups de Contact Builder,
+            // lo cual es diferente a la DE de entrada del Journey.
             "inArguments": [
                 {
                     "contactKey": "{{Contact.Key}}",
-                    "firstName": "{{Contact.Attribute.Clientes_Intereses.FirstName}}",
-                    "city": "{{Contact.Attribute.Clientes_Intereses.City}}",
-                    "interestCategory": "{{Contact.Attribute.Clientes_Intereses.InterestCategory}}"
+                    "firstName": "{{Event.DEAudience-TestCustomActivity.FirstName}}",
+                    "city": "{{Event.DEAudience-TestCustomActivity.City}}",
+                    "interestCategory": "{{Event.DEAudience-TestCustomActivity.InterestCategory}}"
                 }
             ],
+            // --- FIN DEL CAMBIO 2 ---
             "outArguments": [
                 {
                     "gemini_output_html": {
@@ -143,34 +159,18 @@ app.get('/config.json', (req, res) => {
                 "execute": {
                     "inArguments": [
                         {
-                            "firstName": {
-                                "dataType": "Text",
-                                "isNullable": false,
-                                "direction": "In"
-                            }
+                            "firstName": { "dataType": "Text", "isNullable": false, "direction": "In" }
                         },
                         {
-                            "city": {
-                                "dataType": "Text",
-                                "isNullable": true,
-                                "direction": "In"
-                            }
+                            "city": { "dataType": "Text", "isNullable": true, "direction": "In" }
                         },
                         {
-                            "interestCategory": {
-                                "dataType": "Text",
-                                "isNullable": true,
-                                "direction": "In"
-                            }
+                            "interestCategory": { "dataType": "Text", "isNullable": true, "direction": "In" }
                         }
                     ],
                     "outArguments": [
                         {
-                            "gemini_output_html": {
-                                "dataType": "HTML",
-                                "direction": "Out",
-                                "access": "Visible"
-                            }
+                            "gemini_output_html": { "dataType": "HTML", "direction": "Out", "access": "Visible" }
                         }
                     ]
                 }
@@ -189,6 +189,11 @@ app.post('/execute', async (req, res) => {
         console.log("Origin:", req.headers.origin);
         console.log("Body:", JSON.stringify(req.body, null, 2));
         
+        // Verifica si el modelo de Gemini fue inicializado
+        if (!model) {
+            throw new Error('El cliente de Gemini API no está inicializado. Revisa la API Key.');
+        }
+
         if (!req.body.inArguments || !req.body.inArguments[0]) {
             throw new Error('Missing inArguments in request body');
         }
