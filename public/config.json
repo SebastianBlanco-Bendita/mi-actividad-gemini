@@ -1,0 +1,55 @@
+{
+  "key": "gemini-content-generator-1",
+  "name": "Generador de Contenido con IA",
+  "description": "Usa la API de Gemini para crear contenido de email personalizado.",
+  "type": "REST",
+  "lang": {
+    "en-US": {
+      "name": "AI Content Generator",
+      "description": "Uses Gemini API to create personalized email content."
+    }
+  },
+  "workflowApiVersion": "1.1",
+  "execute": {
+    "inArguments": [
+        { "contactKey": "{{Contact.Key}}" },
+        { "firstName": "{{Contact.Attribute.Clientes_Intereses.FirstName}}" },
+        { "city": "{{Contact.Attribute.Clientes_Intereses.City}}" },
+        { "interestCategory": "{{Contact.Attribute.Clientes_Intereses.InterestCategory}}" }
+    ],
+    "outArguments": [
+      {
+        "gemini_output_html": {
+          "dataType": "HTML",
+          "access": "Visible",
+          "direction": "Out"
+        }
+      }
+    ],
+    "url": "https://sfmc-gemini-activity.onrender.com/execute",
+    "verb": "POST",
+    "body": "",
+    "header": "",
+    "format": "json",
+    "useJwt": false,
+    "timeout": 10000
+  },
+  "publish": {
+    "url": "https://sfmc-gemini-activity.onrender.com/publish",
+    "verb": "POST"
+  },
+  "validate": {
+    "url": "https://sfmc-gemini-activity.onrender.com/validate",
+    "verb": "POST"
+  },
+  "save": {
+    "url": "https://sfmc-gemini-activity.onrender.com/save",
+    "verb": "POST"
+  },
+  "uiOptions": {
+    "width": 500,
+    "height": 400,
+    "display": "block"
+  },
+  "icon": "https://sfmc-gemini-activity.onrender.com/images/icon.png"
+}
