@@ -1,11 +1,17 @@
-// index.js
 const express = require('express');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const path = require('path'); // Módulo para manejar rutas de archivos
 require('dotenv').config(); // Carga las variables del archivo .env
 
 const app = express();
+
 // Middleware para que Express pueda entender el JSON que envía Marketing Cloud
 app.use(express.json());
+
+// --- LÍNEA NUEVA Y ESENCIAL ---
+// Sirve archivos estáticos (como config.json e imágenes) desde la carpeta 'public'
+app.use(express.static(path.join(__dirname, 'public')));
+
 
 // Configuración del cliente de Gemini API
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -59,10 +65,21 @@ app.post('/execute', async (req, res) => {
   }
 });
 
-// --- Otros endpoints para el ciclo de vida de la actividad (opcionales pero recomendados) ---
-app.post('/save', (req, res) => res.status(200).json({ success: true }));
-app.post('/publish', (req, res) => res.status(200).json({ success: true }));
-app.post('/validate', (req, res) => res.status(200).json({ success: true }));
+// --- Otros endpoints para el ciclo de vida de la actividad (requeridos por config.json) ---
+app.post('/save', (req, res) => {
+    console.log('Request to /save');
+    res.status(200).json({ success: true });
+});
+
+app.post('/publish', (req, res) => {
+    console.log('Request to /publish');
+    res.status(200).json({ success: true });
+});
+
+app.post('/validate', (req, res) => {
+    console.log('Request to /validate');
+    res.status(200).json({ success: true });
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Servidor escuchando en el puerto ${PORT}`));
