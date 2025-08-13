@@ -15,7 +15,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Configuración del cliente de Gemini API
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
+
 
 // --- Endpoint principal que Marketing Cloud llamará ---
 app.post('/execute', async (req, res) => {
@@ -83,3 +84,4 @@ app.post('/validate', (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Servidor escuchando en el puerto ${PORT}`));
+
