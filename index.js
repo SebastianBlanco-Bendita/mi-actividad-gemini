@@ -6,11 +6,25 @@ require('dotenv').config(); // Carga las variables del archivo .env
 
 const app = express();
 
+// --- INICIO DEL BLOQUE DE CONFIGURACIÓN DE CORS EXPLÍCITO ---
+// Esta sección reemplaza la simple llamada a app.use(cors());
+const corsOptions = {
+  origin: [
+    'https://mc.exacttarget.com', 
+    'https://jb-prod.exacttarget.com',
+    'https://journeybuilder.exacttarget.com'
+  ],
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+  credentials: true,
+  optionsSuccessStatus: 204
+};
+app.use(cors(corsOptions));
+// --- FIN DEL BLOQUE DE CONFIGURACIÓN DE CORS ---
+
+
 // Middleware para que Express pueda entender el JSON que envía Marketing Cloud
-app.use(cors());
 app.use(express.json());
 
-// --- LÍNEA NUEVA Y ESENCIAL ---
 // Sirve archivos estáticos (como config.json e imágenes) desde la carpeta 'public'
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -86,4 +100,3 @@ app.post('/validate', (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Servidor escuchando en el puerto ${PORT}`));
-
