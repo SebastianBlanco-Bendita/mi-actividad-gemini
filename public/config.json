@@ -1,28 +1,99 @@
-    {
-      "key": "gemini-content-generator-1",
-      "name": "Generador de Contenido con IA",
-      "description": "Usa la API de Gemini para crear contenido de email personalizado.",
-      "type": "REST",
-      "workflowApiVersion": "1.1",
-      "execute": {
+{
+    "key": "gemini-content-generator-1",
+    "name": "Generador de Contenido con IA",
+    "description": "Usa la API de Gemini para crear contenido de email personalizado.",
+    "type": "REST",
+    "workflowApiVersion": "1.1",
+    "metaData": {
+        "icon": "https://sfmc-gemini-activity.onrender.com/icon.png",  // <-- Añade un icono para tu actividad
+        "iconSmall": "https://sfmc-gemini-activity.onrender.com/icon-small.png"
+    },
+    "edit": {
+        "url": "https://sfmc-gemini-activity.onrender.com/index.html",
+        "height": 400,
+        "width": 600
+    },
+    "save": {
+        "url": "https://sfmc-gemini-activity.onrender.com/save",
+        "verb": "POST",
+        "useJwt": false
+    },
+    "publish": {
+        "url": "https://sfmc-gemini-activity.onrender.com/publish",
+        "verb": "POST",
+        "useJwt": false
+    },
+    "validate": {
+        "url": "https://sfmc-gemini-activity.onrender.com/validate",
+        "verb": "POST",
+        "useJwt": false
+    },
+    "execute": {
         "inArguments": [
-            { "contactKey": "{{Contact.Key}}" },
-            { "firstName": "{{Contact.Attribute.Clientes_Intereses.FirstName}}" },
-            { "city": "{{Contact.Attribute.Clientes_Intereses.City}}" },
-            { "interestCategory": "{{Contact.Attribute.Clientes_Intereses.InterestCategory}}" }
+            {
+                "contactKey": "{{Contact.Key}}",
+                "firstName": "{{Contact.Attribute.Clientes_Intereses.FirstName}}",
+                "city": "{{Contact.Attribute.Clientes_Intereses.City}}",
+                "interestCategory": "{{Contact.Attribute.Clientes_Intereses.InterestCategory}}"
+            }
         ],
         "outArguments": [
-          {
-            "gemini_output_html": {
-              "dataType": "HTML",
-              "access": "Visible",
-              "direction": "Out"
+            {
+                "gemini_output_html": {
+                    "dataType": "HTML",
+                    "access": "Visible",
+                    "direction": "Out"
+                }
             }
-          }
         ],
         "url": "https://sfmc-gemini-activity.onrender.com/execute",
         "verb": "POST",
         "useJwt": false,
-        "timeout": 10000
-      }
+        "timeout": 25000 
+    },
+    "userInterfaces": {
+        "configModal": {
+            "height": 400,
+            "width": 600,
+            "fullscreen": false
+        }
+    },
+    "schema": {
+        "arguments": {
+            "execute": {
+                "inArguments": [
+                    {
+                        "firstName": {
+                            "dataType": "Text",
+                            "isNullable": false,
+                            "direction": "In"
+                        }
+                    },
+                    {
+                        "city": {
+                            "dataType": "Text",
+                            "isNullable": true,
+                            "direction": "In"
+                        }
+                    },
+                    {
+                        "interestCategory": {
+                            "dataType": "Text",
+                            "isNullable": true,
+                            "direction": "In"
+                        }
+                    }
+                ],
+                "outArguments": [
+                    {
+                        "gemini_output_html": {
+                            "dataType": "HTML",
+                            "direction": "Out",
+                            "access": "Visible"
+                        }
+                    }
+                ]
+            }
+        }
     }
+}
